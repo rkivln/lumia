@@ -1,0 +1,63 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Space Grotesk", sans-serif;
+  
+  --color-primary-lime: #BFF000;
+  --color-primary-purple: #27145D;
+  --color-accent-pink: #FF3D71;
+  --color-accent-blue: #3D8BFF;
+  --color-dark-bg: #0F0F12;
+  --color-card-bg: #1A1A1E;
+}
+
+@layer base {
+  body {
+    @apply bg-dark-bg text-white font-sans antialiased selection:bg-primary-lime selection:text-black;
+  }
+}
+
+@layer utilities {
+  .glass {
+    @apply bg-white/10 backdrop-blur-xl border border-white/10;
+  }
+  
+  .glass-dark {
+    @apply bg-black/40 backdrop-blur-xl border border-white/5;
+  }
+
+  .text-gradient-lime {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-primary-lime to-white;
+  }
+
+  .tab-inactive {
+    @apply text-white/40 hover:text-white/60 transition-colors;
+  }
+
+  .tab-active {
+    @apply text-white bg-primary-purple rounded-full px-4 py-2;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar,
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .scrollbar-hide,
+  .no-scrollbar {
+    -ms-overflow-style: none; /* IE and Edge */
+    scrollbar-width: none; /* Firefox */
+  }
+
+  .profile-input {
+    @apply w-full bg-white/5 border border-white/5 rounded-2xl py-4 pl-14 pr-6 text-sm font-bold text-white outline-none focus:border-accent-blue/40 transition-colors placeholder:text-white/20;
+  }
+}
+
+/* Custom scrollbar for a clean mobile look */
+::-webkit-scrollbar {
+  width: 0px;
+  background: transparent;
+}

@@ -1,0 +1,105 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Information about a client or freelancer",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "email": { "type": "string" },
+        "avatar": { "type": "string" },
+        "role": { "type": "string", "enum": ["client", "freelancer"] },
+        "skills": { "type": "array", "items": { "type": "string" } },
+        "bio": { "type": "string" },
+        "hourlyRate": { "type": "number" },
+        "rating": { "type": "number" },
+        "reviewCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "email", "role"]
+    },
+    "Job": {
+      "title": "Job Posting",
+      "description": "A job posted by a client",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "clientId": { "type": "string" },
+        "title": { "type": "string" },
+        "description": { "type": "string" },
+        "budget": { "type": "number" },
+        "category": { "type": "string" },
+        "skillsRequired": { "type": "array", "items": { "type": "string" } },
+        "status": { "type": "string", "enum": ["open", "in-progress", "completed", "cancelled"] },
+        "freelancerId": { "type": "string" },
+        "proposalCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["clientId", "title", "budget", "status"]
+    },
+    "Proposal": {
+      "title": "Job Proposal",
+      "description": "A bid on a job by a freelancer",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "jobId": { "type": "string" },
+        "freelancerId": { "type": "string" },
+        "clientId": { "type": "string" },
+        "bidAmount": { "type": "number" },
+        "coverLetter": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "accepted", "rejected"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["jobId", "freelancerId", "clientId", "bidAmount"]
+    },
+    "ChatRoom": {
+      "title": "Chat Room",
+      "description": "A communication channel between two users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "participantIds": { "type": "array", "items": { "type": "string" } },
+        "lastMessage": { "type": "string" },
+        "lastMessageAt": { "type": "string", "format": "date-time" },
+        "jobId": { "type": "string" }
+      },
+      "required": ["participantIds"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "An individual chat message",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "senderId": { "type": "string" },
+        "text": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderId", "text"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "User profile data"
+    },
+    "/jobs/{jobId}": {
+      "schema": "Job",
+      "description": "Public and private job postings"
+    },
+    "/jobs/{jobId}/proposals/{proposalId}": {
+      "schema": "Proposal",
+      "description": "Proposals for a specific job"
+    },
+    "/chatRooms/{chatRoomId}": {
+      "schema": "ChatRoom",
+      "description": "Private chat rooms"
+    },
+    "/chatRooms/{chatRoomId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Messages within a chat room"
+    }
+  }
+}

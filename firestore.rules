@@ -1,0 +1,119 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() { return request.auth != null; }
+    function isEmailVerified() { return request.auth.token.email_verified == true; }
+    function isOwner(userId) { return isSignedIn() && request.auth.uid == userId; }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+
+    // --- Entity Validations ---
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'name', 'email', 'role']) &&
+             data.uid == request.auth.uid &&
+             data.name is string && data.name.size() > 0 && data.name.size() <= 100 &&
+             data.email is string && data.email.size() > 0 &&
+             data.role in ['client', 'freelancer'] &&
+             (!('bio' in data) || (data.bio is string && data.bio.size() <= 1000)) &&
+             (!('skills' in data) || (data.skills is list && data.skills.size() <= 30)) &&
+             (!('avatar' in data) || (data.avatar is string && data.avatar.size() <= 1500000)) &&
+             (!('banner' in data) || (data.banner is string && data.banner.size() <= 1500000)) &&
+             (!('location' in data) || (data.location is string && data.location.size() <= 100)) &&
+             (!('website' in data) || (data.website is string && data.website.size() <= 200)) &&
+             (!('github' in data) || (data.github is string && data.github.size() <= 200)) &&
+             (!('hourlyRate' in data) || (data.hourlyRate is number));
+    }
+
+    function isValidJob(data) {
+      return data.keys().hasAll(['clientId', 'title', 'budget', 'status']) &&
+             data.clientId == request.auth.uid &&
+             data.title is string && data.title.size() > 0 && data.title.size() <= 200 &&
+             data.budget is number && data.budget >= 0 &&
+             data.status in ['open', 'in-progress', 'completed', 'cancelled'];
+    }
+
+    function isValidProposal(data) {
+      return data.keys().hasAll(['jobId', 'freelancerId', 'clientId', 'bidAmount', 'status']) &&
+             data.freelancerId == request.auth.uid &&
+             data.bidAmount is number && data.bidAmount > 0 &&
+             data.status in ['pending', 'accepted', 'rejected'] &&
+             exists(/databases/$(database)/documents/jobs/$(data.jobId));
+    }
+
+    function isValidMessage(data) {
+      return data.keys().hasAll(['senderId', 'text', 'createdAt']) &&
+             data.senderId == request.auth.uid &&
+             data.text is string && data.text.size() > 0 && data.text.size() <= 2000;
+    }
+
+    // --- Match Rules ---
+
+    match /test_connection_internal/{docId} {
+      allow read: if true;
+    }
+
+    match /users/{uid} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && resource.data.uid == request.auth.uid; 
+      allow create: if isOwner(uid) && isValidUser(incoming());
+      allow update: if isOwner(uid) && isValidUser(incoming()) &&
+                      incoming().diff(existing()).affectedKeys().hasOnly(['name', 'avatar', 'banner', 'bio', 'skills', 'hourlyRate', 'location', 'website', 'github']);
+    }
+
+    match /jobs/{jobId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && (resource.data.status == 'open' || resource.data.clientId == request.auth.uid);
+      allow create: if isSignedIn() && isValidJob(incoming());
+      allow update: if isSignedIn() && (
+        // Client updates their own job
+        (isOwner(existing().clientId) && isValidJob(incoming()) && 
+         incoming().diff(existing()).affectedKeys().hasOnly(['title', 'description', 'budget', 'category', 'skillsRequired', 'status', 'freelancerId'])) ||
+        // System updates (incrementing proposalCount)
+        (incoming().diff(existing()).affectedKeys().hasOnly(['proposalCount']))
+      );
+      allow delete: if isOwner(existing().clientId);
+    }
+
+    match /proposals/{proposalId} {
+      allow get: if isSignedIn() && (isOwner(resource.data.freelancerId) || isOwner(resource.data.clientId));
+      allow list: if isSignedIn() && (resource.data.freelancerId == request.auth.uid || resource.data.clientId == request.auth.uid);
+      allow create: if isSignedIn() && isValidProposal(incoming());
+      allow update: if isSignedIn() && (
+        // Freelancer updates their bid/letter
+        (isOwner(existing().freelancerId) && isValidProposal(incoming()) && 
+         incoming().diff(existing()).affectedKeys().hasOnly(['bidAmount', 'coverLetter'])) ||
+        // Client accepts/rejects
+        (isOwner(existing().clientId) && incoming().diff(existing()).affectedKeys().hasOnly(['status']))
+      );
+    }
+
+    match /reviews/{jobId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && 
+                      isOwner(incoming().fromId) && 
+                      incoming().jobId == jobId &&
+                      get(/databases/$(database)/documents/jobs/$(jobId)).data.clientId == request.auth.uid &&
+                      get(/databases/$(database)/documents/jobs/$(jobId)).data.status == 'completed';
+    }
+
+    match /chatRooms/{chatRoomId} {
+      allow get, list: if isSignedIn() && request.auth.uid in existing().participantIds;
+      allow create: if isSignedIn() && incoming().participantIds.size() == 2 && request.auth.uid in incoming().participantIds;
+      allow update: if isSignedIn() && request.auth.uid in existing().participantIds &&
+                      incoming().diff(existing()).affectedKeys().hasOnly(['lastMessage', 'lastMessageAt']);
+    }
+
+    match /chatRooms/{chatRoomId}/messages/{messageId} {
+      allow get, list: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.participantIds;
+      allow create: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/chatRooms/$(chatRoomId)).data.participantIds && isValidMessage(incoming());
+    }
+  }
+}
