@@ -1,10 +1,21 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion } from 'motion/react';
-import { LogIn, UserPlus, Zap } from 'lucide-react';
+import { LogIn, Zap } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function LandingPage() {
-  const { signInWithGoogle } = useAuth();
+  const { signInWithGoogle, authError, clearAuthError } = useAuth();
+  const [isSigningIn, setIsSigningIn] = useState(false);
+
+  const handleGoogleSignIn = async () => {
+    try {
+      setIsSigningIn(true);
+      clearAuthError();
+      await signInWithGoogle();
+    } finally {
+      setIsSigningIn(false);
+    }
+  };
 
   return (
     <div className="min-h-screen relative flex flex-col items-center justify-center p-8 overflow-hidden bg-dark-bg">
@@ -50,12 +61,19 @@ export default function LandingPage() {
            className="flex flex-col gap-4"
         >
           <button 
-            onClick={signInWithGoogle}
-            className="w-full py-5 rounded-[2rem] bg-white text-black font-bold flex items-center justify-center gap-3 shadow-xl hover:bg-gray-100 transition-all"
+            onClick={handleGoogleSignIn}
+            disabled={isSigningIn}
+            className="w-full py-5 rounded-[2rem] bg-white text-black font-bold flex items-center justify-center gap-3 shadow-xl hover:bg-gray-100 transition-all disabled:opacity-70 disabled:cursor-not-allowed"
           >
             <LogIn className="w-5 h-5" />
-            Sign in with Google
+            {isSigningIn ? 'Signing in...' : 'Sign in with Google'}
           </button>
+
+          {authError && (
+            <p className="text-sm text-red-300 bg-red-950/30 border border-red-400/30 rounded-xl p-3 leading-relaxed">
+              {authError}
+            </p>
+          )}
           
           <div className="flex items-center gap-4 py-2">
             <div className="h-px flex-1 bg-white/10" />
